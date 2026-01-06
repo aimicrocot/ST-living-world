@@ -1,122 +1,164 @@
-/* ПУТИ ДЛЯ ПАПКИ third-party (глубина 3) */
-import { extension_settings, getContext, saveSettings } from "../../../extensions.js";
-import { eventSource, event_types } from "../../../script.js";
+/* ИСПОЛЬЗУЕМ АБСОЛЮТНЫЕ ПУТИ (РАБОТАЕТ НА ВСЕХ УРОВНЯХ ВЛОЖЕННОСТИ) */
+import { extension_settings, getContext, saveSettings } from "/scripts/extensions.js";
+import { eventSource, event_types } from "/script.js";
 
 const EXTENSION_NAME = "living_world_events";
 const EVENT_PROMPT = "[OOC: Introduce new events, characters, and create a living world that feel organic to the current story.]";
 
-// Настройки по умолчанию
-if (!extension_settings[EXTENSION_NAME]) {
-    extension_settings[EXTENSION_NAME] = {
-        probability: 25,
-        enabled: true
-    };
+// Инициализация настроек
+// Мы ждем, пока extension_settings загрузится, поэтому делаем проверку внутри
+function initSettings() {
+    if (!extension_settings[EXTENSION_NAME]) {
+        extension_settings[EXTENSION_NAME] = {
+            probability: 25,
+            enabled: true
+        };
+    }
 }
 
 let triggerActive = false;
 
-// === 1. ГРОМКОЕ ПОДТВЕРЖДЕНИЕ ЗАГРУЗКИ ===
-// Если вы видите это окно при старте, значит скрипт РАБОТАЕТ.
-// Если нет - значит браузер не нашел файл.
-setTimeout(() => {
-    // alert("[Living World] Расширение успешно загружено!");
-    // ^ Раскомментируйте строчку выше, если хотите назойливое окно.
-    // Пока используем Toastr:
-    if (typeof toastr !== 'undefined') {
-        toastr.success("Living World Loaded!", "System");
-    }
-}, 2000);
-
-
-// === 2. СОЗДАНИЕ ПЛАВАЮЩЕЙ КНОПКИ (Управление) ===
-// Мы добавим кнопку прямо на экран, чтобы не искать её в меню.
-function createFloatingButton() {
-    if ($('#lw-floating-btn').length > 0) return;
-
-    const btnHtml = `
-    <div id="lw-floating-btn" title="Living World Settings"
-         style="position: fixed; top: 10px; left: 100px; width: 30px; height: 30px;
-                background: black; color: white; border: 1px solid lime; border-radius: 50%;
-                z-index: 20000; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; font-size: 20px; opacity: 0.5;">
-        🎲
-    </div>
-
-    <!-- Окно настроек (скрытое) -->
-    <div id="lw-settings-modal" style="display: none; position: fixed; top: 50px; left: 50px;
-                width: 250px; background: rgba(0,0,0,0.9); border: 1px solid lime; pading: 10px;
-                z-index: 20001; padding: 15px; border-radius: 5px; color: white;">
-
-        <h3>Living World</h3>
-        <hr>
-
-        <label style="display:block; margin: 10px 0;">
-            <input type="checkbox" id="lw_enabled_float" ${extension_settings[EXTENSION_NAME].enabled ? 'checked' : ''}>
-            Включить события
-        </label>
-
-        <label style="display:block; margin: 10px 0;">
-            Вероятность: <b><span id="lw_val_float">${extension_settings[EXTENSION_NAME].probability}</span>%</b>
-        </label>
-
-        <input type="range" id="lw_slider_float" min="0" max="100" value="${extension_settings[EXTENSION_NAME].probability}" style="width: 100%;">
-        <br><br>
-        <button id="lw_close_float" style="width: 100%;">Закрыть</button>
-    </div>
-    `;
-
-    $('body').append(btnHtml);
-
-    // Логика кнопки
-    $('#lw-floating-btn').on('click', () => {
-        $('#lw-settings-modal').toggle();
-    });
-
-    $('#lw_close_float').on('click', () => {
-        $('#lw-settings-modal').hide();
-    });
-
-    // Логика чекбокса
-    $('#lw_enabled_float').on('change', function() {
-        extension_settings[EXTENSION_NAME].enabled = !!this.checked;
-        saveSettings();
-    });
-
-    // Логика слайдера
-    $('#lw_slider_float').on('input', function() {
-        const val = $(this).val();
-        $('#lw_val_float').text(val);
-        extension_settings[EXTENSION_NAME].probability = Number(val);
-        saveSettings();
-    });
-}
-
-
-// === 3. ОСНОВНАЯ ЛОГИКА ===
+// === ГЛАВНАЯ ФУНКЦИЯ: Бросок кубика ===
 function checkProbability() {
+    initSettings(); // На всякий случай проверяем настройки
     triggerActive = false;
+
     const settings = extension_settings[EXTENSION_NAME];
-    if (!settings || !settings.enabled) return;
+    if (!settings.enabled) return;
 
     const roll = Math.floor(Math.random() * 100) + 1;
-    console.log(`[Living World] Dice: ${roll} / ${settings.probability}`);
+
+    // Пишем в консоль (F12), чтобы видеть работу скрипта
+    console.log(`[Living World] Rolled: ${roll} (Needed: <= ${settings.probability})`);
 
     if (roll <= settings.probability) {
         triggerActive = true;
+        // Показываем уведомление
         if (typeof toastr !== 'undefined') {
-            toastr.info(`🎲 Event Triggered! (${roll}<=${settings.probability})`, "Living World");
+            toastr.info(`🎲 Event Triggered! (${roll} <= ${settings.probability})`, "Living World");
         }
     }
 }
 
-jQuery(async () => {
-    // Ждем полной загрузки интерфейса
-    setTimeout(createFloatingButton, 3000);
+// === ИНТЕРФЕЙС: Плавающая кнопка ===
+function createFloatingButton() {
+    // Если кнопка уже есть, не создаем дубликат
+    if (document.getElementById('lw-floating-btn')) return;
 
-    // Подключаемся к генерации
+    // Стили для кнопки и меню
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #lw-floating-btn {
+            position: fixed; top: 10px; left: 80px; width: 35px; height: 35px;
+            background: rgba(0, 0, 0, 0.7); color: lime; border: 1px solid lime;
+            border-radius: 50%; z-index: 19999; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            font-size: 20px;
+        }
+        #lw-settings-panel {
+            display: none; position: fixed; top: 50px; left: 20px; right: 20px;
+            background: rgba(20, 20, 20, 0.95); border: 1px solid #555;
+            padding: 15px; border-radius: 10px; z-index: 20000; color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        #lw-settings-panel h3 { margin: 0 0 10px 0; font-size: 16px; color: lime; }
+        .lw-row { margin-bottom: 15px; }
+        .lw-btn {
+            width: 100%; padding: 8px; background: #333; color: white;
+            border: 1px solid #555; border-radius: 4px;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // HTML кнопки
+    const btn = document.createElement('div');
+    btn.id = 'lw-floating-btn';
+    btn.innerHTML = '🎲';
+    btn.title = 'Living World Settings';
+    document.body.appendChild(btn);
+
+    // HTML меню
+    const panel = document.createElement('div');
+    panel.id = 'lw-settings-panel';
+    panel.innerHTML = `
+        <h3>Living World Settings</h3>
+
+        <div class="lw-row">
+            <label style="display:flex; align-items:center; gap: 10px;">
+                <input type="checkbox" id="lw-check-enable">
+                Включить события
+            </label>
+        </div>
+
+        <div class="lw-row">
+            <div style="display:flex; justify-content:space-between;">
+                <span>Вероятность:</span>
+                <span id="lw-display-val">0%</span>
+            </div>
+            <input type="range" id="lw-range-prob" min="0" max="100" style="width:100%;">
+            <br>
+            <input type="number" id="lw-num-prob" min="0" max="100" style="width:100%; margin-top:5px; background:#111; color:white; border:1px solid #555;">
+        </div>
+
+        <button class="lw-btn" id="lw-close-btn">Закрыть</button>
+    `;
+    document.body.appendChild(panel);
+
+    // === Логика работы кнопок ===
+    const settings = extension_settings[EXTENSION_NAME] || { probability: 25, enabled: true };
+
+    // Элементы
+    const checkbox = document.getElementById('lw-check-enable');
+    const range = document.getElementById('lw-range-prob');
+    const numInput = document.getElementById('lw-num-prob');
+    const displayVal = document.getElementById('lw-display-val');
+
+    // Установка начальных значений
+    checkbox.checked = settings.enabled;
+    range.value = settings.probability;
+    numInput.value = settings.probability;
+    displayVal.innerText = settings.probability + '%';
+
+    // Обработчики событий
+    btn.onclick = () => {
+        panel.style.display = (panel.style.display === 'none') ? 'block' : 'none';
+        initSettings(); // Обновляем данные при открытии
+    };
+
+    document.getElementById('lw-close-btn').onclick = () => {
+        panel.style.display = 'none';
+    };
+
+    checkbox.onchange = (e) => {
+        extension_settings[EXTENSION_NAME].enabled = e.target.checked;
+        saveSettings();
+    };
+
+    const updateProb = (val) => {
+        extension_settings[EXTENSION_NAME].probability = Number(val);
+        range.value = val;
+        numInput.value = val;
+        displayVal.innerText = val + '%';
+        saveSettings();
+    };
+
+    range.oninput = (e) => updateProb(e.target.value);
+    numInput.oninput = (e) => updateProb(e.target.value);
+}
+
+// === СТАРТ СКРИПТА ===
+jQuery(async () => {
+    // 1. Ждем загрузки
+    setTimeout(() => {
+        initSettings();
+        createFloatingButton();
+        if (typeof toastr !== 'undefined') toastr.success("Loaded!", "Living World");
+    }, 2000);
+
+    // 2. Слушаем генерацию
     eventSource.on(event_types.GENERATION_STARTED, checkProbability);
 
-    // Внедряем промт
+    // 3. Регистрируем промт
     if (typeof SillyTavern !== 'undefined' && SillyTavern.extension_prompt_types) {
         SillyTavern.extension_prompt_types.push({
             name: EXTENSION_NAME,
