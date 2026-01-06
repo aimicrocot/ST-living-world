@@ -1,6 +1,5 @@
 # ST-living-world
 Plot boost, setting the probability of a new character or event appearing in percentages.</br>
-
 Quick installation: https://github.com/aimicrocot/ST-living-world
 
-Inspired by delidgi: https://t.me/MommyCat_SillyTavern/54
+Inspired by delidgi: https://github.com/delidgi/ST-extension-chaos-events
