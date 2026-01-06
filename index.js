@@ -1,160 +1,130 @@
-// Используем самые надежные пути (абсолютные)
-import { extension_settings, getContext, saveSettings } from "/scripts/extensions.js";
-import { eventSource, event_types } from "/script.js";
+/* ПУТИ ДЛЯ ПАПКИ third-party (глубина 3) */
+import { extension_settings, getContext, saveSettings } from "../../../extensions.js";
+import { eventSource, event_types } from "../../../script.js";
 
 const EXTENSION_NAME = "living_world_events";
-const EXTENSION_DISPLAY_NAME = "Living World Events";
 const EVENT_PROMPT = "[OOC: Introduce new events, characters, and create a living world that feel organic to the current story.]";
 
-// Стандартные настройки
-const defaultSettings = {
-    probability: 25,
-    enabled: true
-};
+// Настройки по умолчанию
+if (!extension_settings[EXTENSION_NAME]) {
+    extension_settings[EXTENSION_NAME] = {
+        probability: 25,
+        enabled: true
+    };
+}
 
 let triggerActive = false;
 
-// 1. Функция загрузки настроек
-function loadSettings() {
-    console.log("[Living World] Loading settings...");
-    if (!extension_settings[EXTENSION_NAME]) {
-        extension_settings[EXTENSION_NAME] = { ...defaultSettings };
+// === 1. ГРОМКОЕ ПОДТВЕРЖДЕНИЕ ЗАГРУЗКИ ===
+// Если вы видите это окно при старте, значит скрипт РАБОТАЕТ.
+// Если нет - значит браузер не нашел файл.
+setTimeout(() => {
+    // alert("[Living World] Расширение успешно загружено!");
+    // ^ Раскомментируйте строчку выше, если хотите назойливое окно.
+    // Пока используем Toastr:
+    if (typeof toastr !== 'undefined') {
+        toastr.success("Living World Loaded!", "System");
     }
-}
+}, 2000);
 
-// 2. Функция, которая создает меню (Слайдер + Поле ввода)
-function renderSettings() {
-    // Ищем контейнер расширений
-    const container = $('#extensions_settings');
 
-    // Если контейнера нет (меню закрыто), ничего не делаем
-    if (container.length === 0) return;
+// === 2. СОЗДАНИЕ ПЛАВАЮЩЕЙ КНОПКИ (Управление) ===
+// Мы добавим кнопку прямо на экран, чтобы не искать её в меню.
+function createFloatingButton() {
+    if ($('#lw-floating-btn').length > 0) return;
 
-    // Проверяем, не нарисовали ли мы уже настройки
-    if ($('#living-world-settings-block').length > 0) return;
-
-    console.log("[Living World] Rendering GUI...");
-
-    const currentProb = extension_settings[EXTENSION_NAME].probability;
-    const isEnabled = extension_settings[EXTENSION_NAME].enabled;
-
-    const html = `
-    <div id="living-world-settings-block" class="extension_block">
-        <div class="inline-drawer-toggle inline-drawer-header">
-            <b>Living World Events</b>
-        </div>
-        <div class="inline-drawer-content">
-            <!-- Чекбокс включения -->
-            <label class="checkbox_label" style="display: flex; align-items: center; margin-bottom: 10px;">
-                <input type="checkbox" id="lw_enabled" ${isEnabled ? 'checked' : ''} style="margin-right: 10px;">
-                Enable Random Events
-            </label>
-
-            <!-- Поле ввода процентов и Слайдер -->
-            <label>Probability (%)</label>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <input type="number" id="lw_input" min="0" max="100" value="${currentProb}" class="text_pole" style="width: 60px;">
-                <input type="range" id="lw_slider" min="0" max="100" value="${currentProb}" style="flex-grow: 1;">
-            </div>
-            <div style="font-size: 0.8em; opacity: 0.6; margin-top: 5px;">
-                Chance that the OOC prompt will be injected.
-            </div>
-        </div>
+    const btnHtml = `
+    <div id="lw-floating-btn" title="Living World Settings"
+         style="position: fixed; top: 10px; left: 100px; width: 30px; height: 30px;
+                background: black; color: white; border: 1px solid lime; border-radius: 50%;
+                z-index: 20000; display: flex; align-items: center; justify-content: center;
+                cursor: pointer; font-size: 20px; opacity: 0.5;">
+        🎲
     </div>
-    <hr>`;
 
-    container.append(html);
+    <!-- Окно настроек (скрытое) -->
+    <div id="lw-settings-modal" style="display: none; position: fixed; top: 50px; left: 50px;
+                width: 250px; background: rgba(0,0,0,0.9); border: 1px solid lime; pading: 10px;
+                z-index: 20001; padding: 15px; border-radius: 5px; color: white;">
 
-    // Логика работы кнопок
-    $('#lw_enabled').on('change', function() {
+        <h3>Living World</h3>
+        <hr>
+
+        <label style="display:block; margin: 10px 0;">
+            <input type="checkbox" id="lw_enabled_float" ${extension_settings[EXTENSION_NAME].enabled ? 'checked' : ''}>
+            Включить события
+        </label>
+
+        <label style="display:block; margin: 10px 0;">
+            Вероятность: <b><span id="lw_val_float">${extension_settings[EXTENSION_NAME].probability}</span>%</b>
+        </label>
+
+        <input type="range" id="lw_slider_float" min="0" max="100" value="${extension_settings[EXTENSION_NAME].probability}" style="width: 100%;">
+        <br><br>
+        <button id="lw_close_float" style="width: 100%;">Закрыть</button>
+    </div>
+    `;
+
+    $('body').append(btnHtml);
+
+    // Логика кнопки
+    $('#lw-floating-btn').on('click', () => {
+        $('#lw-settings-modal').toggle();
+    });
+
+    $('#lw_close_float').on('click', () => {
+        $('#lw-settings-modal').hide();
+    });
+
+    // Логика чекбокса
+    $('#lw_enabled_float').on('change', function() {
         extension_settings[EXTENSION_NAME].enabled = !!this.checked;
         saveSettings();
     });
 
-    // Связываем поле ввода и слайдер
-    $('#lw_input').on('input', function() {
-        let val = parseInt($(this).val());
-        if (val < 0) val = 0;
-        if (val > 100) val = 100;
-
-        $('#lw_slider').val(val);
-        extension_settings[EXTENSION_NAME].probability = val;
-        saveSettings();
-    });
-
-    $('#lw_slider').on('input', function() {
+    // Логика слайдера
+    $('#lw_slider_float').on('input', function() {
         const val = $(this).val();
-        $('#lw_input').val(val);
+        $('#lw_val_float').text(val);
         extension_settings[EXTENSION_NAME].probability = Number(val);
         saveSettings();
     });
 }
 
-// 3. Основная логика работы (бросок кубика)
+
+// === 3. ОСНОВНАЯ ЛОГИКА ===
 function checkProbability() {
     triggerActive = false;
     const settings = extension_settings[EXTENSION_NAME];
+    if (!settings || !settings.enabled) return;
 
-    // Защита, если настройки не загрузились
-    if (!settings) return;
-    if (!settings.enabled) return;
-
-    const roll = Math.floor(Math.random() * 100) + 1; // 1-100
-
-    console.log(`[Living World] Rolled: ${roll}, Target: ${settings.probability}`);
+    const roll = Math.floor(Math.random() * 100) + 1;
+    console.log(`[Living World] Dice: ${roll} / ${settings.probability}`);
 
     if (roll <= settings.probability) {
         triggerActive = true;
-
-        // Показываем уведомление (Toast)
         if (typeof toastr !== 'undefined') {
-            toastr.info(`Random Event Triggered! (Chance: ${settings.probability}%)`, "Living World");
+            toastr.info(`🎲 Event Triggered! (${roll}<=${settings.probability})`, "Living World");
         }
     }
 }
 
-// 4. Запуск расширения
 jQuery(async () => {
-    // Ждем секунду, чтобы Таверна "проснулась"
-    setTimeout(() => {
-        try {
-            loadSettings();
+    // Ждем полной загрузки интерфейса
+    setTimeout(createFloatingButton, 3000);
 
-            // Если toastr доступен, пишем что загрузились
-            if (typeof toastr !== 'undefined') {
-                toastr.success("Living World Extension Ready", "System");
-            }
+    // Подключаемся к генерации
+    eventSource.on(event_types.GENERATION_STARTED, checkProbability);
 
-            // 1. Слушаем открытие меню расширений, чтобы нарисовать кнопки
-            // Используем MutationObserver, так как на Android события клика могут теряться
-            const observer = new MutationObserver((mutations) => {
-                renderSettings();
-            });
-
-            // Следим за всем телом страницы, вдруг меню появится
-            observer.observe(document.body, { childList: true, subtree: true });
-
-            // Для надежности пробуем рисовать при клике на любую кнопку меню
-            $(document).on('click', renderSettings);
-
-            // 2. Слушаем начало генерации
-            eventSource.on(event_types.GENERATION_STARTED, checkProbability);
-
-            // 3. Добавляем промт
-            if (typeof SillyTavern !== 'undefined' && SillyTavern.extension_prompt_types) {
-                SillyTavern.extension_prompt_types.push({
-                    name: EXTENSION_NAME,
-                    value: () => {
-                        return triggerActive ? EVENT_PROMPT : "";
-                    },
-                    position: 'after_scenario',
-                    separator: '\n\n'
-                });
-            }
-
-        } catch (e) {
-            console.error("[Living World] CRITICAL ERROR:", e);
-            if (typeof toastr !== 'undefined') toastr.error("Living World crashed. Check console.", "Error");
-        }
-    }, 1000);
+    // Внедряем промт
+    if (typeof SillyTavern !== 'undefined' && SillyTavern.extension_prompt_types) {
+        SillyTavern.extension_prompt_types.push({
+            name: EXTENSION_NAME,
+            value: () => {
+                return triggerActive ? EVENT_PROMPT : "";
+            },
+            position: 'after_scenario',
+            separator: '\n\n'
+        });
+    }
 });
