@@ -1,6 +1,7 @@
-import { extension_settings, getContext, saveSettings } from "../../extensions.js";
-import { eventSource, event_types, saveChat } from "../../script.js";
-import { toastr } from "../../toastr_plugin.js";
+/* Обратите внимание на три точки ../../../ вместо двух */
+import { extension_settings, getContext, saveSettings } from "../../../extensions.js";
+import { eventSource, event_types, saveChat } from "../../../script.js";
+import { toastr } from "../../../toastr_plugin.js";
 
 const EXTENSION_NAME = "living_world_events";
 const EXTENSION_DISPLAY_NAME = "Living World Events";
