@@ -4,7 +4,7 @@
 Plot boost, setting the probability of a new character or event appearing in percentages.</br>
 This version is in testing and may be unstable.
 
-## Quick installation: 
+## Quick installation
 1. Open SillyTavern.
 2. Go to Extensions (puzzle icon at the top).
 3. Click Install Extension (or "Install from URL").
