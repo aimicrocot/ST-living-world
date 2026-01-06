@@ -1,98 +1,98 @@
-/* АБСОЛЮТНЫЕ ПУТИ - РАБОЧИЙ ВАРИАНТ */
-import { extension_settings, getContext, saveSettings } from "/scripts/extensions.js";
+/* АГРЕССИВНЫЙ РЕЖИМ: АБСОЛЮТНЫЕ ПУТИ + ПРИНУДИТЕЛЬНАЯ ОТРИСОВКА МЕНЮ */
+import { extension_settings, saveSettings } from "/scripts/extensions.js";
 import { eventSource, event_types } from "/script.js";
 
 const EXTENSION_NAME = "living_world_events";
 const PROMPT_TEXT = "[OOC: Introduce new events, characters, and create a living world that feel organic to the current story.]";
 
+// Настройки по умолчанию
 const defaultSettings = {
     probability: 25,
     enabled: true
 };
 
+// Проверяем настройки сразу
+if (!extension_settings[EXTENSION_NAME]) {
+    extension_settings[EXTENSION_NAME] = { ...defaultSettings };
+}
+
 let triggerActive = false;
 
-// === 1. ЛОГИКА ===
+
+// === 1. ГЛАВНАЯ ЛОГИКА ===
+// Срабатывает перед тем как бот начинает писать
 function checkProbability() {
     triggerActive = false;
-    // Инициализация настроек "на лету", если их еще нет
-    if (!extension_settings[EXTENSION_NAME]) {
-        extension_settings[EXTENSION_NAME] = { ...defaultSettings };
-    }
-
     const settings = extension_settings[EXTENSION_NAME];
 
     if (!settings.enabled) return;
 
+    // Бросаем кубик (1-100)
     const roll = Math.floor(Math.random() * 100) + 1;
 
-    // Вывод в консоль для проверки (если нужно)
-    console.log(`[Living World] Rolled: ${roll} (Target: <= ${settings.probability})`);
-
+    // Проверка
     if (roll <= settings.probability) {
         triggerActive = true;
-        // Уведомление только при срабатывании события
+
+        // Уведомление, что сработало
         if (typeof toastr !== 'undefined') {
-            toastr.info("Event Triggered!", "Living World");
+            toastr.info(`Событие запущено! (Шанс: ${settings.probability}%)`, "Living World");
         }
     }
 }
 
-// === 2. МЕНЮ НАСТРОЕК (Поле ввода) ===
-function injectSettings() {
-    // Ищем список расширений
+
+// === 2. ОТРИСОВКА НАСТРОЕК (Поиск меню каждую секунду) ===
+function forceRenderUI() {
+    // 1. Ищем контейнер с настройками расширений (ID может быть extensions_settings)
     const container = document.getElementById('extensions_settings');
-    if (!container) return;
 
-    // Если наш блок уже есть - выходим
-    if (document.getElementById('lw_settings_block')) return;
+    // Если меню закрыто (контейнера нет) или наш блок УЖЕ там есть -> выходим
+    if (!container || document.getElementById('lw_ui_block')) return;
 
-    // Если настройки не инициализированы - делаем это
-    if (!extension_settings[EXTENSION_NAME]) {
-        extension_settings[EXTENSION_NAME] = { ...defaultSettings };
-    }
+    // 2. Создаем HTML блок настроек
+    const block = document.createElement('div');
+    block.id = 'lw_ui_block';
+
+    // СТИЛИ: Делаем яркую рамку, чтобы вы точно его заметили
+    block.style.border = "2px solid #00FF00";
+    block.style.padding = "10px";
+    block.style.marginTop = "15px";
+    block.style.borderRadius = "8px";
+    block.style.background = "rgba(0, 0, 0, 0.3)";
+
     const settings = extension_settings[EXTENSION_NAME];
 
-    // Создаем блок
-    const block = document.createElement('div');
-    block.id = 'lw_settings_block';
-    // Стилизуем под стандартный блок настроек ST
-    block.style.background = 'rgba(0, 0, 0, 0.2)';
-    block.style.padding = '10px';
-    block.style.marginTop = '10px';
-    block.style.borderRadius = '5px';
-    block.style.border = '1px solid #444';
-
     block.innerHTML = `
-        <h4 style="margin: 0 0 10px 0; font-weight: bold;">Living World Events</h4>
+        <h3 style="color: #00FF00; margin-top: 0;">Living World Events</h3>
 
-        <div style="margin-bottom: 10px;">
-            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="lw_enable_cb" ${settings.enabled ? 'checked' : ''}>
-                Включить внедрение событий
-            </label>
+        <!-- Галочка включения -->
+        <div style="margin-bottom: 15px;">
+             <label style="cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 16px;">
+                 <input type="checkbox" id="lw_enabled" ${settings.enabled ? 'checked' : ''} style="transform: scale(1.5);">
+                 <strong>Включить события</strong>
+             </label>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span>Вероятность (%):</span>
-            <input type="number" id="lw_prob_input" min="0" max="100"
-                   value="${settings.probability}"
-                   style="width: 80px; text-align: center; padding: 5px; background: #222; color: #fff; border: 1px solid #555;">
+        <!-- Ввод процентов -->
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 16px;">
+            <label>Вероятность (0-100%):</label>
+            <input type="number" id="lw_probability" value="${settings.probability}" min="0" max="100"
+                   style="width: 70px; padding: 5px; text-align: center; color: black; font-weight: bold;">
         </div>
     `;
 
+    // 3. Вставляем в конец списка настроек
     container.appendChild(block);
 
-    // Логика сохранения чекбокса
-    document.getElementById('lw_enable_cb').addEventListener('change', (e) => {
+    // 4. Оживляем элементы
+    document.getElementById('lw_enabled').addEventListener('change', (e) => {
         extension_settings[EXTENSION_NAME].enabled = e.target.checked;
         saveSettings();
     });
 
-    // Логика сохранения цифр
-    document.getElementById('lw_prob_input').addEventListener('input', (e) => {
+    document.getElementById('lw_probability').addEventListener('input', (e) => {
         let val = parseInt(e.target.value);
-        // Ограничиваем 0-100
         if (isNaN(val)) val = 0;
         if (val < 0) val = 0;
         if (val > 100) val = 100;
@@ -102,29 +102,24 @@ function injectSettings() {
     });
 }
 
+
 // === 3. ЗАПУСК ===
 jQuery(async () => {
-    // 1. Подключаемся к генерации
+    // Подключаемся к генерации ответа
     eventSource.on(event_types.GENERATION_STARTED, checkProbability);
 
-    // 2. Внедряем текст промта
+    // Подключаем промт
     if (typeof SillyTavern !== 'undefined' && SillyTavern.extension_prompt_types) {
         SillyTavern.extension_prompt_types.push({
             name: EXTENSION_NAME,
-            value: () => {
-                return triggerActive ? PROMPT_TEXT : "";
-            },
+            value: () => triggerActive ? PROMPT_TEXT : "",
             position: 'after_scenario',
             separator: '\n\n'
         });
     }
 
-    // 3. Следим за появлением меню (fix для Android)
-    const observer = new MutationObserver((mutations) => {
-        injectSettings();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Попытка сразу нарисовать, если меню открыто
-    injectSettings();
+    // ЗАПУСКАЕМ ТАЙМЕР ПОИСКА МЕНЮ
+    // Каждую 1 секунду скрипт будет проверять: "Открыто ли меню настроек?"
+    // Если открыто -> рисует там зеленый блок.
+    setInterval(forceRenderUI, 1000);
 });
