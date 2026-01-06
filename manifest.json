@@ -1,0 +1,8 @@
+{
+    "name": "Living World Events",
+    "version": "1.0.0",
+    "author": "Microcot",
+    "js": "index.js",
+    "css": "",
+    "description": "Adds a probability check to inject a specific OOC prompt during flow."
+}
