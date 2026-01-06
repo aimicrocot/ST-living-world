@@ -2,6 +2,7 @@
 
 ## Experimental! version
 Plot boost, setting the probability of a new character or event appearing in percentages.</br>
+This version is in testing and may be unstable.
 
 ## Quick installation: 
 1. Open SillyTavern.
