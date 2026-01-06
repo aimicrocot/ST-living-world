@@ -1,5 +1,5 @@
 import { extension_settings, getContext, saveSettings } from "/scripts/extensions.js";
-import { eventSource, event_types, saveChat } from "/scripts/script.js";
+import { eventSource, event_types, saveChat } from "/script.js";
 
 const EXTENSION_NAME = "living_world_events";
 const EXTENSION_DISPLAY_NAME = "Living World Events";
@@ -19,34 +19,47 @@ function loadSettings() {
 }
 
 function buildSettingsMenu() {
+    // Проверка на jQuery
+    if (typeof $ === 'undefined') return;
+
     const settingsHtml = `
-    <div class="living-world-settings-container">
-        <label class="checkbox_label">
-            <input type="checkbox" id="living_world_enable" ${extension_settings[EXTENSION_NAME].enabled ? "checked" : ""}>
-            Enable Living World Events
-        </label>
-        <hr>
-        <div class="range-field">
-            <label for="living_world_probability">Event Probability: <span id="living_world_prob_val">${extension_settings[EXTENSION_NAME].probability}</span>%</label>
-            <input type="range" id="living_world_probability" min="0" max="100" step="1" value="${extension_settings[EXTENSION_NAME].probability}">
-            <small>Chance to inject the OOC prompt for each AI response.</small>
+    <div class="living-world-settings">
+        <div class="inline-drawer">
+            <div class="inline-drawer-toggle inline-drawer-header">
+                <b>Living World Events</b>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+            </div>
+            <div class="inline-drawer-content" style="font-size:small;">
+                <label class="checkbox_label">
+                    <input type="checkbox" id="living_world_enable" ${extension_settings[EXTENSION_NAME].enabled ? 'checked' : ''}>
+                    Enable Random Events
+                </label>
+                <br>
+                <label>
+                    Probability: <span id="living_world_prob_val">${extension_settings[EXTENSION_NAME].probability}</span>%
+                    <input type="range" id="living_world_probability" min="1" max="100" value="${extension_settings[EXTENSION_NAME].probability}">
+                </label>
+            </div>
         </div>
     </div>
     `;
 
-    $('#extensions_settings').append(`<div id="living_world_settings_block" class="extension_block"><h4>${EXTENSION_DISPLAY_NAME}</h4>${settingsHtml}</div>`);
+    const container = $('#extensions_settings');
+    if (container.length && container.find('#living_world_enable').length === 0) {
+        container.append(settingsHtml);
 
-    $('#living_world_enable').on('change', function() {
-        extension_settings[EXTENSION_NAME].enabled = !!this.checked;
-        saveSettings();
-    });
+        $('#living_world_enable').on('change', function() {
+            extension_settings[EXTENSION_NAME].enabled = !!this.checked;
+            saveSettings();
+        });
 
-    $('#living_world_probability').on('input', function() {
-        const val = $(this).val();
-        $('#living_world_prob_val').text(val);
-        extension_settings[EXTENSION_NAME].probability = Number(val);
-        saveSettings();
-    });
+        $('#living_world_probability').on('input', function() {
+            const val = $(this).val();
+            $('#living_world_prob_val').text(val);
+            extension_settings[EXTENSION_NAME].probability = Number(val);
+            saveSettings();
+        });
+    }
 }
 
 function onGenerationStarted() {
@@ -58,7 +71,11 @@ function onGenerationStarted() {
 
     if (roll <= settings.probability) {
         triggerActive = true;
-        toastr.info(`Living World Event Triggered! (Roll: ${roll} <= ${settings.probability})`, "Event System");
+
+        // Используем глобальный toastr, если доступен
+        if (typeof toastr !== 'undefined') {
+            toastr.info(`Living World Event Triggered! (Roll: ${roll} <= ${settings.probability})`, "Event System");
+        }
         console.log(`[Living World] Event triggered. Roll: ${roll}`);
     } else {
         console.log(`[Living World] No event. Roll: ${roll} > ${settings.probability}`);
@@ -67,7 +84,9 @@ function onGenerationStarted() {
 
 jQuery(async () => {
     loadSettings();
+    // Небольшая задержка для рендеринга UI
     setTimeout(buildSettingsMenu, 2000);
+
     eventSource.on(event_types.GENERATION_STARTED, onGenerationStarted);
 
     if (typeof SillyTavern !== 'undefined' && SillyTavern.extension_prompt_types) {
