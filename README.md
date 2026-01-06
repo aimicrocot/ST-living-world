@@ -6,4 +6,5 @@ Plot boost, setting the probability of a new character or event appearing in per
 ## Quick installation: 
 https://github.com/aimicrocot/ST-living-world
 
-Inspired by delidgi: https://github.com/delidgi/ST-extension-chaos-events
+## Inspired by delidgi: 
+https://github.com/delidgi/ST-extension-chaos-events
