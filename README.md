@@ -8,9 +8,9 @@ This version is in testing and may be unstable.
 1. Open SillyTavern.
 2. Go to Extensions (puzzle icon at the top).
 3. Click Install Extension (or "Install from URL").
-4. Paste your link and click Save/Install:
+4. Paste your link and click Save/Install:</br>
 https://github.com/aimicrocot/ST-living-world
 
 ## Thanks
-Inspired by delidgi: 
+Inspired by delidgi:</br>
 https://github.com/delidgi/ST-extension-chaos-events
